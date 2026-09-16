@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dbms
+      POSTGRES_PASSWORD: dbms
+      POSTGRES_DB: deep_space_missions
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbms_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  dbms_postgres_data:

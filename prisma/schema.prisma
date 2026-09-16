@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MissionStatus {
+  planned
+  active
+  completed
+  aborted
+
+  @@map("mission_status")
+}
+
+model SpaceAgency {
+  agencyId     Int    @id @default(autoincrement()) @map("agency_id")
+  agencyName   String @map("agency_name")
+  country      String
+  headquarters String
+
+  missions Mission[]
+
+  @@map("space_agencies")
+}
+
+model LaunchVehicle {
+  vehicleId    Int    @id @default(autoincrement()) @map("vehicle_id")
+  vehicleName  String @map("vehicle_name")
+  manufacturer String
+
+  missions Mission[]
+
+  @@map("launch_vehicles")
+}
+
+model Mission {
+  missionId       Int           @id @default(autoincrement()) @map("mission_id")
+  missionName     String        @map("mission_name")
+  missionType     String        @map("mission_type")
+  launchDate      DateTime      @map("launch_date")
+  status          MissionStatus @default(planned)
+  budget          Decimal       @db.Decimal(14, 2)
+  agencyId        Int           @map("agency_id")
+  launchVehicleId Int           @map("launch_vehicle_id")
+
+  agency        SpaceAgency   @relation(fields: [agencyId], references: [agencyId], onDelete: Restrict)
+  launchVehicle LaunchVehicle @relation(fields: [launchVehicleId], references: [vehicleId], onDelete: Restrict)
+  spacecraft    Spacecraft[]
+  experiments   Experiment[]
+  telemetry     Telemetry[]
+
+  @@index([agencyId])
+  @@index([launchVehicleId])
+  @@map("missions")
+}
+
+model Spacecraft {
+  spacecraftId Int    @id @default(autoincrement()) @map("spacecraft_id")
+  name         String
+  model        String
+  crewCapacity Int    @map("crew_capacity")
+  missionId    Int    @map("mission_id")
+
+  mission    Mission     @relation(fields: [missionId], references: [missionId], onDelete: Cascade)
+  astronauts Astronaut[]
+  payloads   Payload[]
+
+  @@index([missionId])
+  @@map("spacecraft")
+}
+
+model Astronaut {
+  astronautId  Int    @id @default(autoincrement()) @map("astronaut_id")
+  name         String
+  nationality  String
+  rank         String
+  spacecraftId Int?   @map("spacecraft_id")
+
+  spacecraft Spacecraft? @relation(fields: [spacecraftId], references: [spacecraftId], onDelete: SetNull)
+
+  @@index([spacecraftId])
+  @@map("astronauts")
+}
+
+model Payload {
+  payloadId    Int     @id @default(autoincrement()) @map("payload_id")
+  payloadName  String  @map("payload_name")
+  payloadType  String  @map("payload_type")
+  weight       Decimal @db.Decimal(10, 2)
+  spacecraftId Int?    @map("spacecraft_id")
+
+  spacecraft Spacecraft? @relation(fields: [spacecraftId], references: [spacecraftId], onDelete: SetNull)
+
+  @@index([spacecraftId])
+  @@map("payloads")
+}
+
+model GroundStation {
+  stationId   Int    @id @default(autoincrement()) @map("station_id")
+  stationName String @map("station_name")
+  location    String
+
+  telemetry Telemetry[]
+
+  @@map("ground_stations")
+}
+
+model Telemetry {
+  telemetryId Int      @id @default(autoincrement()) @map("telemetry_id")
+  timestamp   DateTime
+  altitude    Decimal  @db.Decimal(12, 3)
+  velocity    Decimal  @db.Decimal(12, 3)
+  missionId   Int      @map("mission_id")
+  stationId   Int      @map("station_id")
+
+  mission Mission       @relation(fields: [missionId], references: [missionId], onDelete: Cascade)
+  station GroundStation @relation(fields: [stationId], references: [stationId], onDelete: Restrict)
+
+  @@index([missionId])
+  @@index([stationId])
+  @@map("telemetry")
+}
+
+model Experiment {
+  experimentId   Int    @id @default(autoincrement()) @map("experiment_id")
+  experimentName String @map("experiment_name")
+  objective      String
+  missionId      Int    @map("mission_id")
+
+  mission Mission @relation(fields: [missionId], references: [missionId], onDelete: Cascade)
+
+  @@index([missionId])
+  @@map("experiments")
+}
+
+model AdminUser {
+  id           Int    @id @default(autoincrement())
+  username     String @unique
+  passwordHash String @map("password_hash")
+
+  @@map("admin_users")
+}
