@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { spacecraftSchema } from "@/lib/validators";
 import { handleApiError, parseId } from "@/lib/api-helpers";
+import { flattenSpacecraft, spacecraftMembers } from "@/lib/flatten";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -10,9 +11,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const spacecraftId = parseId((await params).id);
     const spacecraft = await prisma.spacecraft.findUniqueOrThrow({
       where: { spacecraftId },
-      include: { mission: true, astronauts: true, payloads: true },
+      include: { mission: true, ...spacecraftMembers },
     });
-    return NextResponse.json(spacecraft);
+    return NextResponse.json(flattenSpacecraft(spacecraft));
   } catch (error) {
     return handleApiError(error);
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { payloadSchema } from "@/lib/validators";
 import { handleApiError, parseId } from "@/lib/api-helpers";
+import { flattenLinks, withSpacecraft } from "@/lib/flatten";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -10,9 +11,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const payloadId = parseId((await params).id);
     const payload = await prisma.payload.findUniqueOrThrow({
       where: { payloadId },
-      include: { spacecraft: { include: { mission: true } } },
+      include: withSpacecraft,
     });
-    return NextResponse.json(payload);
+    return NextResponse.json(flattenLinks(payload));
   } catch (error) {
     return handleApiError(error);
   }
@@ -21,12 +22,19 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const payloadId = parseId((await params).id);
-    const body = payloadSchema.parse(await req.json());
+    const { spacecraftIds, ...data } = payloadSchema.parse(await req.json());
     const payload = await prisma.payload.update({
       where: { payloadId },
-      data: { ...body, spacecraftId: body.spacecraftId ?? null },
+      data: {
+        ...data,
+        spacecraft: {
+          deleteMany: {},
+          create: spacecraftIds.map((spacecraftId) => ({ spacecraftId })),
+        },
+      },
+      include: withSpacecraft,
     });
-    return NextResponse.json(payload);
+    return NextResponse.json(flattenLinks(payload));
   } catch (error) {
     return handleApiError(error);
   }

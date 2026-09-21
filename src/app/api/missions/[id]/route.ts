@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { missionSchema } from "@/lib/validators";
 import { handleApiError, parseId } from "@/lib/api-helpers";
+import { flattenSpacecraft, spacecraftMembers } from "@/lib/flatten";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -13,12 +14,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
       include: {
         agency: true,
         launchVehicle: true,
-        spacecraft: { include: { astronauts: true, payloads: true } },
+        spacecraft: { include: spacecraftMembers },
         experiments: true,
         telemetry: { include: { station: true }, orderBy: { timestamp: "desc" } },
       },
     });
-    return NextResponse.json(mission);
+    return NextResponse.json({
+      ...mission,
+      spacecraft: mission.spacecraft.map(flattenSpacecraft),
+    });
   } catch (error) {
     return handleApiError(error);
   }

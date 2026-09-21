@@ -14,7 +14,7 @@ export async function GET() {
     prisma.mission.count({ where: { status: "active" } }),
     prisma.spaceAgency.count(),
     prisma.astronaut.count({
-      where: { spacecraft: { mission: { status: "active" } } },
+      where: { spacecraft: { some: { spacecraft: { mission: { status: "active" } } } } },
     }),
     prisma.mission.groupBy({ by: ["status"], _count: { status: true } }),
     prisma.telemetry.findMany({
