@@ -57,7 +57,7 @@ type FormState = {
   status: string;
   budget: string;
   agencyId: string;
-  launchVehicleId: string;
+  vehicleId: string;
 };
 
 const emptyForm: FormState = {
@@ -67,7 +67,7 @@ const emptyForm: FormState = {
   status: "planned",
   budget: "",
   agencyId: "",
-  launchVehicleId: "",
+  vehicleId: "",
 };
 
 export default function MissionsPage() {
@@ -140,7 +140,7 @@ export default function MissionsPage() {
       status: mission.status,
       budget: String(mission.budget),
       agencyId: String(mission.agencyId),
-      launchVehicleId: String(mission.launchVehicleId),
+      vehicleId: String(mission.vehicleId),
     });
     setDialogOpen(true);
   }
@@ -477,8 +477,8 @@ export default function MissionsPage() {
               <div className="space-y-2">
                 <Label>Launch Vehicle</Label>
                 <Select
-                  value={form.launchVehicleId}
-                  onValueChange={(v) => setForm({ ...form, launchVehicleId: v ?? "" })}
+                  value={form.vehicleId}
+                  onValueChange={(v) => setForm({ ...form, vehicleId: v ?? "" })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select vehicle" />

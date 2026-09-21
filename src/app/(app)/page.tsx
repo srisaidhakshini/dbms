@@ -76,25 +76,25 @@ export default function DashboardPage() {
         description="Overview of active deep space missions and telemetry."
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="mb-6 grid grid-cols-2 gap-x-6 gap-y-3 border-y border-border py-3 lg:grid-cols-4">
         {cards.map(({ label, value, icon: Icon }) => (
-          <Card key={label}>
-            <CardContent className="flex items-center justify-between pt-6">
-              <div>
-                <p className="text-xs text-muted-foreground">{label}</p>
+          <div key={label} className="flex items-center justify-between gap-3">
+            <div>
+              <dt className="text-xs text-muted-foreground">{label}</dt>
+              <dd>
                 {loading ? (
                   <Skeleton className="mt-1 h-8 w-12" />
                 ) : (
-                  <p className="text-3xl font-semibold">{value ?? 0}</p>
+                  <span className="text-2xl font-semibold">{value ?? 0}</span>
                 )}
-              </div>
-              <Icon className="h-8 w-8 text-primary" />
-            </CardContent>
-          </Card>
+              </dd>
+            </div>
+            <Icon className="h-6 w-6 text-primary" />
+          </div>
         ))}
-      </div>
+      </dl>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Mission Status Breakdown</CardTitle>
@@ -122,6 +122,9 @@ export default function DashboardPage() {
                         borderColor: "var(--border)",
                         color: "var(--popover-foreground)",
                       }}
+                      labelStyle={{ color: "var(--popover-foreground)" }}
+                      itemStyle={{ color: "var(--popover-foreground)" }}
+                      cursor={{ fill: "var(--muted)", opacity: 0.3 }}
                     />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                       {data.statusBreakdown.map((entry) => (
@@ -142,7 +145,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="text-base">Recent Telemetry Feed</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {loading ? (
               <>
                 <Skeleton className="h-10 w-full" />
@@ -152,10 +155,10 @@ export default function DashboardPage() {
             ) : !data || data.recentTelemetry.length === 0 ? (
               <p className="text-sm text-muted-foreground">No telemetry recorded yet.</p>
             ) : (
-              data.recentTelemetry.map((t) => (
+              data.recentTelemetry.slice(0, 6).map((t) => (
                 <div
                   key={t.telemetryId}
-                  className="flex items-center justify-between rounded-md border border-border p-3 text-sm"
+                  className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
                 >
                   <div>
                     <p className="font-medium">{t.mission.missionName}</p>
@@ -173,7 +176,7 @@ export default function DashboardPage() {
             )}
             <Link
               href="/telemetry"
-              className="mt-2 inline-block text-sm text-primary hover:underline"
+              className="inline-block pt-1 text-sm text-primary hover:underline"
             >
               Open telemetry explorer &rarr;
             </Link>

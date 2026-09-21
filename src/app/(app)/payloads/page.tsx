@@ -27,28 +27,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-const UNASSIGNED = "unassigned";
 
 type FormState = {
   payloadName: string;
   payloadType: string;
   weight: string;
-  spacecraftId: string;
+  spacecraftIds: number[];
 };
 
 const emptyForm: FormState = {
   payloadName: "",
   payloadType: "",
   weight: "",
-  spacecraftId: UNASSIGNED,
+  spacecraftIds: [],
 };
 
 export default function PayloadsPage() {
@@ -87,7 +78,7 @@ export default function PayloadsPage() {
       payloadName: payload.payloadName,
       payloadType: payload.payloadType,
       weight: String(payload.weight),
-      spacecraftId: payload.spacecraftId ? String(payload.spacecraftId) : UNASSIGNED,
+      spacecraftIds: payload.spacecraft.map((sc) => sc.spacecraftId),
     });
     setDialogOpen(true);
   }
@@ -98,14 +89,10 @@ export default function PayloadsPage() {
     try {
       const url = editing ? `/api/payloads/${editing.payloadId}` : "/api/payloads";
       const method = editing ? "PUT" : "POST";
-      const payload = {
-        ...form,
-        spacecraftId: form.spacecraftId === UNASSIGNED ? null : form.spacecraftId,
-      };
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(form),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -146,7 +133,7 @@ export default function PayloadsPage() {
     <div>
       <PageHeader
         title="Payloads"
-        description="Instruments and cargo carried by spacecraft."
+        description="Instruments and cargo, and the spacecraft that carry them."
         actions={
           <>
             <ExportCsvButton
@@ -157,8 +144,8 @@ export default function PayloadsPage() {
                 { header: "Payload Name", accessor: (r) => r.payloadName },
                 { header: "Type", accessor: (r) => r.payloadType },
                 { header: "Weight (kg)", accessor: (r) => String(r.weight) },
-                { header: "Spacecraft", accessor: (r) => r.spacecraft?.name ?? "" },
-                { header: "Mission", accessor: (r) => r.spacecraft?.mission.missionName ?? "" },
+                { header: "Spacecraft", accessor: (r) => r.spacecraft.map((sc) => sc.name).join("; ") },
+                { header: "Missions", accessor: (r) => r.spacecraft.map((sc) => sc.mission.missionName).join("; ") },
               ]}
             />
             <Button size="sm" className="gap-2" onClick={openCreate}>
@@ -209,8 +196,8 @@ export default function PayloadsPage() {
                     <TableCell>{payload.payloadType}</TableCell>
                     <TableCell>{Number(payload.weight).toFixed(1)}</TableCell>
                     <TableCell>
-                      {payload.spacecraft ? (
-                        payload.spacecraft.name
+                      {payload.spacecraft.length > 0 ? (
+                        payload.spacecraft.map((sc) => sc.name).join(", ")
                       ) : (
                         <span className="text-muted-foreground">Unassigned</span>
                       )}
@@ -273,22 +260,28 @@ export default function PayloadsPage() {
             </div>
             <div className="space-y-2">
               <Label>Spacecraft</Label>
-              <Select
-                value={form.spacecraftId}
-                onValueChange={(v) => setForm({ ...form, spacecraftId: v ?? UNASSIGNED })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                  {spacecraft.map((sc) => (
-                    <SelectItem key={sc.spacecraftId} value={String(sc.spacecraftId)}>
-                      {sc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border border-border p-2">
+                {spacecraft.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No spacecraft available.</p>
+                )}
+                {spacecraft.map((sc) => (
+                  <label key={sc.spacecraftId} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.spacecraftIds.includes(sc.spacecraftId)}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          spacecraftIds: e.target.checked
+                            ? [...form.spacecraftIds, sc.spacecraftId]
+                            : form.spacecraftIds.filter((id) => id !== sc.spacecraftId),
+                        })
+                      }
+                    />
+                    {sc.name}
+                  </label>
+                ))}
+              </div>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={submitting}>

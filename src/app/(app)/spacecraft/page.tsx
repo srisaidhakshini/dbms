@@ -288,7 +288,7 @@ export default function SpacecraftPage() {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete spacecraft?"
-        description={`This will permanently delete "${deleteTarget?.name}". Linked astronauts and payloads will be unassigned, not deleted.`}
+        description={`This will permanently delete "${deleteTarget?.name}". Its links to astronauts and payloads will be removed; the astronauts and payloads themselves are kept.`}
         onConfirm={handleDelete}
         isDeleting={deleting}
       />

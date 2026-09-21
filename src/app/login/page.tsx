@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,10 +44,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-sm">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <Card className="w-full max-w-sm shadow-lg shadow-primary/10 ring-1 ring-primary/20">
         <CardHeader>
-          <CardTitle className="text-2xl">Mission Control</CardTitle>
+          <div className="mb-2 flex items-center gap-2">
+            <Rocket className="h-6 w-6 text-primary drop-shadow-[0_0_6px_var(--primary)]" />
+            <CardTitle className="font-heading text-2xl tracking-wide bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Mission Control
+            </CardTitle>
+          </div>
           <CardDescription>
             Sign in to access the Deep Space Mission Management System.
           </CardDescription>

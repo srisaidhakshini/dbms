@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ArrowLeft, Rocket, Users, Package, FlaskConical, Activity } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { MissionDetail } from "@/lib/types";
@@ -92,49 +91,39 @@ export default function MissionDetailPage({
         }
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground">Agency</p>
-            <p className="font-medium">{mission.agency.agencyName}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground">Launch Vehicle</p>
-            <p className="font-medium">{mission.launchVehicle.vehicleName}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground">Launch Date</p>
-            <p className="font-medium">
-              {new Date(mission.launchDate).toLocaleDateString()}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground">Budget</p>
-            <p className="font-medium">${Number(mission.budget).toLocaleString()}</p>
-          </CardContent>
-        </Card>
-      </div>
+      <dl className="mb-6 grid grid-cols-2 gap-x-6 gap-y-3 border-y border-border py-3 lg:grid-cols-4">
+        <div>
+          <dt className="text-xs text-muted-foreground">Agency</dt>
+          <dd className="font-medium">{mission.agency.agencyName}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Launch Vehicle</dt>
+          <dd className="font-medium">{mission.launchVehicle.vehicleName}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Launch Date</dt>
+          <dd className="font-medium">
+            {new Date(mission.launchDate).toLocaleDateString("en-US", { dateStyle: "medium" })}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Budget</dt>
+          <dd className="font-medium">${Number(mission.budget).toLocaleString("en-US")}</dd>
+        </div>
+      </dl>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Rocket className="h-4 w-4" />
-              Spacecraft ({mission.spacecraft.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {mission.spacecraft.length === 0 && (
-              <p className="text-sm text-muted-foreground">No spacecraft assigned.</p>
-            )}
+      <div className="grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-2">
+        <section>
+          <h2 className="mb-2 flex items-center gap-2 border-b border-border pb-2 font-heading text-base">
+            <Rocket className="h-4 w-4" />
+            Spacecraft ({mission.spacecraft.length})
+          </h2>
+          {mission.spacecraft.length === 0 && (
+            <p className="text-sm text-muted-foreground">No spacecraft assigned.</p>
+          )}
+          <ul className="divide-y divide-border">
             {mission.spacecraft.map((sc) => (
-              <div key={sc.spacecraftId} className="rounded-md border border-border p-3">
+              <li key={sc.spacecraftId} className="py-2">
                 <Link
                   href={`/spacecraft/${sc.spacecraftId}`}
                   className="font-medium hover:underline"
@@ -144,7 +133,7 @@ export default function MissionDetailPage({
                 <p className="text-xs text-muted-foreground">
                   {sc.model} &middot; Crew capacity {sc.crewCapacity}
                 </p>
-                <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
+                <div className="mt-1 flex gap-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Users className="h-3 w-3" /> {sc.astronauts.length} astronauts
                   </span>
@@ -152,75 +141,67 @@ export default function MissionDetailPage({
                     <Package className="h-3 w-3" /> {sc.payloads.length} payloads
                   </span>
                 </div>
-              </div>
+              </li>
             ))}
-          </CardContent>
-        </Card>
+          </ul>
+        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FlaskConical className="h-4 w-4" />
-              Experiments ({mission.experiments.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {mission.experiments.length === 0 && (
-              <p className="text-sm text-muted-foreground">No experiments recorded.</p>
-            )}
+        <section>
+          <h2 className="mb-2 flex items-center gap-2 border-b border-border pb-2 font-heading text-base">
+            <FlaskConical className="h-4 w-4" />
+            Experiments ({mission.experiments.length})
+          </h2>
+          {mission.experiments.length === 0 && (
+            <p className="text-sm text-muted-foreground">No experiments recorded.</p>
+          )}
+          <ul className="divide-y divide-border">
             {mission.experiments.map((exp) => (
-              <div key={exp.experimentId} className="rounded-md border border-border p-3">
+              <li key={exp.experimentId} className="py-2">
                 <p className="font-medium">{exp.experimentName}</p>
                 <p className="text-xs text-muted-foreground">{exp.objective}</p>
-              </div>
+              </li>
             ))}
-          </CardContent>
-        </Card>
+          </ul>
+        </section>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-4 w-4" />
-              Recent Telemetry ({mission.telemetry.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {mission.telemetry.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No telemetry recorded.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                      <th className="py-2 pr-4">Timestamp</th>
-                      <th className="py-2 pr-4">Station</th>
-                      <th className="py-2 pr-4">Altitude (km)</th>
-                      <th className="py-2 pr-4">Velocity (km/s)</th>
+        <section className="lg:col-span-2">
+          <h2 className="mb-2 flex items-center gap-2 border-b border-border pb-2 font-heading text-base">
+            <Activity className="h-4 w-4" />
+            Recent Telemetry ({mission.telemetry.length})
+          </h2>
+          {mission.telemetry.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No telemetry recorded.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                    <th className="py-2 pr-4">Timestamp</th>
+                    <th className="py-2 pr-4">Station</th>
+                    <th className="py-2 pr-4">Altitude (km)</th>
+                    <th className="py-2 pr-4">Velocity (km/s)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mission.telemetry.slice(0, 10).map((t) => (
+                    <tr key={t.telemetryId} className="border-b border-border last:border-0">
+                      <td className="py-2 pr-4">{new Date(t.timestamp).toLocaleString()}</td>
+                      <td className="py-2 pr-4">{t.station.stationName}</td>
+                      <td className="py-2 pr-4">{Number(t.altitude).toFixed(2)}</td>
+                      <td className="py-2 pr-4">{Number(t.velocity).toFixed(2)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {mission.telemetry.slice(0, 10).map((t) => (
-                      <tr key={t.telemetryId} className="border-b border-border last:border-0">
-                        <td className="py-2 pr-4">
-                          {new Date(t.timestamp).toLocaleString()}
-                        </td>
-                        <td className="py-2 pr-4">{t.station.stationName}</td>
-                        <td className="py-2 pr-4">{Number(t.altitude).toFixed(2)}</td>
-                        <td className="py-2 pr-4">{Number(t.velocity).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <Link
-              href={`/telemetry?missionId=${mission.missionId}`}
-              className="mt-3 inline-block text-sm text-primary hover:underline"
-            >
-              View full telemetry explorer &rarr;
-            </Link>
-          </CardContent>
-        </Card>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <Link
+            href={`/telemetry?missionId=${mission.missionId}`}
+            className="mt-3 inline-block text-sm text-primary hover:underline"
+          >
+            View full telemetry explorer &rarr;
+          </Link>
+        </section>
       </div>
     </div>
   );
