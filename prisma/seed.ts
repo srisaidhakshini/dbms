@@ -1,11 +1,22 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const prisma = new PrismaClient();
+
+type Sample = { t: string; altitude: number; velocity: number };
+// Real geocentric trajectories from NASA JPL Horizons (https://ssd.jpl.nasa.gov/horizons/).
+// altitude = distance from Earth's centre minus 6,371 km; velocity = speed relative to Earth (km/s).
+const trajectories = JSON.parse(
+  readFileSync(join(__dirname, "telemetry-data.json"), "utf-8")
+) as Record<string, Sample[]>;
 
 async function main() {
   await prisma.telemetry.deleteMany();
   await prisma.experiment.deleteMany();
+  await prisma.spacecraftPayload.deleteMany();
+  await prisma.spacecraftAstronaut.deleteMany();
   await prisma.payload.deleteMany();
   await prisma.astronaut.deleteMany();
   await prisma.spacecraft.deleteMany();
@@ -18,435 +29,152 @@ async function main() {
   const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
   const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
   const passwordHash = await bcrypt.hash(adminPassword, 10);
+  await prisma.adminUser.create({ data: { username: adminUsername, passwordHash } });
 
-  await prisma.adminUser.create({
-    data: { username: adminUsername, passwordHash },
-  });
+  const agency = (agencyName: string, country: string, headquarters: string) =>
+    prisma.spaceAgency.create({ data: { agencyName, country, headquarters } });
+  const nasa = await agency("National Aeronautics and Space Administration", "United States", "Washington, D.C.");
+  const esa = await agency("European Space Agency", "France", "Paris");
+  const isro = await agency("Indian Space Research Organisation", "India", "Bengaluru");
+  await agency("Roscosmos State Corporation for Space Activities", "Russia", "Moscow");
+  await agency("Japan Aerospace Exploration Agency", "Japan", "Tokyo");
+  await agency("China National Space Administration", "China", "Beijing");
+  await agency("Canadian Space Agency", "Canada", "Saint-Hubert, Quebec");
 
-  const [nasa, esa, isro, _spacex, roscosmos] = await Promise.all([
-    prisma.spaceAgency.create({
-      data: {
-        agencyName: "National Aeronautics and Space Administration",
-        country: "United States",
-        headquarters: "Washington, D.C.",
-      },
-    }),
-    prisma.spaceAgency.create({
-      data: {
-        agencyName: "European Space Agency",
-        country: "France",
-        headquarters: "Paris",
-      },
-    }),
-    prisma.spaceAgency.create({
-      data: {
-        agencyName: "Indian Space Research Organisation",
-        country: "India",
-        headquarters: "Bengaluru",
-      },
-    }),
-    prisma.spaceAgency.create({
-      data: {
-        agencyName: "SpaceX",
-        country: "United States",
-        headquarters: "Hawthorne, California",
-      },
-    }),
-    prisma.spaceAgency.create({
-      data: {
-        agencyName: "Roscosmos",
-        country: "Russia",
-        headquarters: "Moscow",
-      },
-    }),
-  ]);
+  const vehicle = (vehicleName: string, manufacturer: string) =>
+    prisma.launchVehicle.create({ data: { vehicleName, manufacturer } });
+  const sls = await vehicle("Space Launch System Block 1", "Boeing");
+  const falconHeavy = await vehicle("Falcon Heavy", "SpaceX");
+  const falcon9 = await vehicle("Falcon 9", "SpaceX");
+  const atlasV = await vehicle("Atlas V", "United Launch Alliance");
+  const ariane5 = await vehicle("Ariane 5", "ArianeGroup");
+  await vehicle("Ariane 6", "ArianeGroup");
+  const lvm3 = await vehicle("LVM3", "Indian Space Research Organisation");
+  const pslv = await vehicle("PSLV-XL", "Indian Space Research Organisation");
 
-  const [falconHeavy, ariane6, gslvMkIII, starship, sls] = await Promise.all([
-    prisma.launchVehicle.create({
-      data: { vehicleName: "Falcon Heavy", manufacturer: "SpaceX" },
-    }),
-    prisma.launchVehicle.create({
-      data: { vehicleName: "Ariane 6", manufacturer: "ArianeGroup" },
-    }),
-    prisma.launchVehicle.create({
-      data: { vehicleName: "GSLV Mk III", manufacturer: "ISRO" },
-    }),
-    prisma.launchVehicle.create({
-      data: { vehicleName: "Starship", manufacturer: "SpaceX" },
-    }),
-    prisma.launchVehicle.create({
-      data: { vehicleName: "Space Launch System (SLS)", manufacturer: "NASA / Boeing" },
-    }),
-  ]);
+  const station = (stationName: string, location: string) =>
+    prisma.groundStation.create({ data: { stationName, location } });
+  const goldstone = await station("Goldstone Deep Space Communications Complex", "Barstow, California, USA");
+  const madrid = await station("Madrid Deep Space Communications Complex", "Robledo de Chavela, Spain");
+  const canberra = await station("Canberra Deep Space Communications Complex", "Tidbinbilla, Australia");
+  const mila = await station("Merritt Island Launch Annex (MILA)", "Merritt Island, Florida, USA");
+  const kourou = await station("ESTRACK Kourou", "Kourou, French Guiana");
+  const newNorcia = await station("ESTRACK New Norcia", "New Norcia, Western Australia");
+  const cebreros = await station("ESTRACK Cebreros", "Cebreros, Spain");
+  const malargue = await station("ESTRACK Malargue", "Malargue, Argentina");
+  const istrac = await station("ISRO Telemetry, Tracking and Command Network (ISTRAC)", "Bengaluru, India");
 
-  const [dsn1, dsn2, esoc, istrac, _baikonur] = await Promise.all([
-    prisma.groundStation.create({
-      data: { stationName: "Goldstone Deep Space Complex", location: "California, USA" },
-    }),
-    prisma.groundStation.create({
-      data: { stationName: "Canberra Deep Space Complex", location: "Canberra, Australia" },
-    }),
-    prisma.groundStation.create({
-      data: { stationName: "European Space Operations Centre", location: "Darmstadt, Germany" },
-    }),
-    prisma.groundStation.create({
-      data: { stationName: "ISTRAC Ground Station", location: "Bengaluru, India" },
-    }),
-    prisma.groundStation.create({
-      data: { stationName: "Baikonur Mission Control", location: "Baikonur, Kazakhstan" },
-    }),
-  ]);
+  // Budgets are approximate lifecycle / programme figures in USD.
+  const mission = (
+    missionName: string,
+    missionType: string,
+    launchDate: string,
+    status: "planned" | "active" | "completed" | "aborted",
+    budget: number,
+    agencyId: number,
+    vehicleId: number
+  ) =>
+    prisma.mission.create({
+      data: { missionName, missionType, launchDate: new Date(launchDate), status, budget, agencyId, vehicleId },
+    });
 
-  const artemisII = await prisma.mission.create({
-    data: {
-      missionName: "Artemis II",
-      missionType: "Crewed Lunar Flyby",
-      launchDate: new Date("2026-04-15"),
-      status: "planned",
-      budget: 4100000000,
-      agencyId: nasa.agencyId,
-      launchVehicleId: sls.vehicleId,
-    },
-  });
+  const artemis1 = await mission("Artemis I", "Uncrewed Lunar Test Flight", "2022-11-16", "completed", 4_100_000_000, nasa.agencyId, sls.vehicleId);
+  const artemis2 = await mission("Artemis II", "Crewed Lunar Flyby", "2026-04-01", "completed", 4_100_000_000, nasa.agencyId, sls.vehicleId);
+  const clipper = await mission("Europa Clipper", "Robotic Orbiter", "2024-10-14", "active", 5_200_000_000, nasa.agencyId, falconHeavy.vehicleId);
+  const mars2020 = await mission("Mars 2020 Perseverance", "Robotic Rover", "2020-07-30", "active", 2_700_000_000, nasa.agencyId, atlasV.vehicleId);
+  const jwst = await mission("James Webb Space Telescope", "Space Observatory", "2021-12-25", "active", 10_000_000_000, nasa.agencyId, ariane5.vehicleId);
+  const juice = await mission("JUICE", "Robotic Orbiter", "2023-04-14", "active", 1_700_000_000, esa.agencyId, ariane5.vehicleId);
+  const chandrayaan3 = await mission("Chandrayaan-3", "Robotic Lunar Lander", "2023-07-14", "completed", 75_000_000, isro.agencyId, lvm3.vehicleId);
+  const mom = await mission("Mars Orbiter Mission (Mangalyaan)", "Robotic Orbiter", "2013-11-05", "completed", 73_000_000, isro.agencyId, pslv.vehicleId);
+  const cft = await mission("Boeing Crew Flight Test", "Crewed ISS Flight", "2024-06-05", "completed", 4_200_000_000, nasa.agencyId, atlasV.vehicleId);
+  const crew9 = await mission("SpaceX Crew-9", "Crewed ISS Rotation", "2024-09-28", "completed", 220_000_000, nasa.agencyId, falcon9.vehicleId);
 
-  const europaClipper = await prisma.mission.create({
-    data: {
-      missionName: "Europa Clipper",
-      missionType: "Robotic Orbiter",
-      launchDate: new Date("2024-10-14"),
-      status: "active",
-      budget: 5200000000,
-      agencyId: nasa.agencyId,
-      launchVehicleId: falconHeavy.vehicleId,
-    },
-  });
+  const craft = (name: string, model: string, crewCapacity: number, missionId: number) =>
+    prisma.spacecraft.create({ data: { name, model, crewCapacity, missionId } });
+  const orion1 = await craft("Orion (Artemis I)", "Orion MPCV", 4, artemis1.missionId);
+  const orion2 = await craft("Orion (Artemis II)", "Orion MPCV", 4, artemis2.missionId);
+  await craft("Europa Clipper", "Europa Clipper Orbiter", 0, clipper.missionId);
+  const perseverance = await craft("Perseverance", "Mars 2020 Rover", 0, mars2020.missionId);
+  await craft("James Webb Space Telescope", "JWST Observatory", 0, jwst.missionId);
+  await craft("JUICE", "Jupiter Icy Moons Explorer", 0, juice.missionId);
+  const vikram = await craft("Vikram", "Chandrayaan-3 Lander Module", 0, chandrayaan3.missionId);
+  const mangalyaan = await craft("Mangalyaan", "Mars Orbiter Mission Spacecraft", 0, mom.missionId);
+  const calypso = await craft("Calypso", "Boeing CST-100 Starliner", 4, cft.missionId);
+  const freedom = await craft("Freedom", "SpaceX Crew Dragon", 4, crew9.missionId);
 
-  const gaganyaan = await prisma.mission.create({
-    data: {
-      missionName: "Gaganyaan",
-      missionType: "Crewed Orbital Mission",
-      launchDate: new Date("2026-08-01"),
-      status: "planned",
-      budget: 1200000000,
-      agencyId: isro.agencyId,
-      launchVehicleId: gslvMkIII.vehicleId,
-    },
-  });
-
-  const jwstServicing = await prisma.mission.create({
-    data: {
-      missionName: "JUICE",
-      missionType: "Robotic Orbiter",
-      launchDate: new Date("2023-04-14"),
-      status: "active",
-      budget: 1700000000,
-      agencyId: esa.agencyId,
-      launchVehicleId: ariane6.vehicleId,
-    },
-  });
-
-  const marsSample = await prisma.mission.create({
-    data: {
-      missionName: "Mars Sample Return",
-      missionType: "Robotic Sample Return",
-      launchDate: new Date("2028-07-20"),
-      status: "planned",
-      budget: 7000000000,
-      agencyId: nasa.agencyId,
-      launchVehicleId: starship.vehicleId,
-    },
-  });
-
-  const _luna25 = await prisma.mission.create({
-    data: {
-      missionName: "Luna 26",
-      missionType: "Robotic Lunar Orbiter",
-      launchDate: new Date("2027-02-10"),
-      status: "planned",
-      budget: 480000000,
-      agencyId: roscosmos.agencyId,
-      launchVehicleId: sls.vehicleId,
-    },
-  });
-
-  const insight = await prisma.mission.create({
-    data: {
-      missionName: "InSight",
-      missionType: "Robotic Lander",
-      launchDate: new Date("2018-05-05"),
-      status: "completed",
-      budget: 830000000,
-      agencyId: nasa.agencyId,
-      launchVehicleId: falconHeavy.vehicleId,
-    },
-  });
-
-  const _soyuzMS = await prisma.mission.create({
-    data: {
-      missionName: "Soyuz MS-24",
-      missionType: "Crewed ISS Resupply",
-      launchDate: new Date("2023-09-15"),
-      status: "aborted",
-      budget: 90000000,
-      agencyId: roscosmos.agencyId,
-      launchVehicleId: sls.vehicleId,
-    },
-  });
-
-  const orionCraft = await prisma.spacecraft.create({
-    data: {
-      name: "Orion",
-      model: "Orion MPCV Block 1",
-      crewCapacity: 4,
-      missionId: artemisII.missionId,
-    },
-  });
-
-  const clipperCraft = await prisma.spacecraft.create({
-    data: {
-      name: "Europa Clipper Orbiter",
-      model: "Clipper Bus",
-      crewCapacity: 0,
-      missionId: europaClipper.missionId,
-    },
-  });
-
-  const gaganyaanCraft = await prisma.spacecraft.create({
-    data: {
-      name: "Gaganyaan Crew Module",
-      model: "GCM-1",
-      crewCapacity: 3,
-      missionId: gaganyaan.missionId,
-    },
-  });
-
-  const juiceCraft = await prisma.spacecraft.create({
-    data: {
-      name: "JUICE Orbiter",
-      model: "JUICE Bus",
-      crewCapacity: 0,
-      missionId: jwstServicing.missionId,
-    },
-  });
-
-  const perseveranceCraft = await prisma.spacecraft.create({
-    data: {
-      name: "Mars Ascent Vehicle",
-      model: "MAV-1",
-      crewCapacity: 0,
-      missionId: marsSample.missionId,
-    },
-  });
-
-  await Promise.all([
+  type Craft = { spacecraftId: number };
+  const astronaut = (name: string, nationality: string, rank: string, ...crafts: Craft[]) =>
     prisma.astronaut.create({
       data: {
-        name: "Reid Wiseman",
-        nationality: "United States",
-        rank: "Commander",
-        spacecraftId: orionCraft.spacecraftId,
+        name,
+        nationality,
+        rank,
+        spacecraft: { create: crafts.map(({ spacecraftId }) => ({ spacecraftId })) },
       },
-    }),
-    prisma.astronaut.create({
-      data: {
-        name: "Victor Glover",
-        nationality: "United States",
-        rank: "Pilot",
-        spacecraftId: orionCraft.spacecraftId,
-      },
-    }),
-    prisma.astronaut.create({
-      data: {
-        name: "Christina Koch",
-        nationality: "United States",
-        rank: "Mission Specialist",
-        spacecraftId: orionCraft.spacecraftId,
-      },
-    }),
-    prisma.astronaut.create({
-      data: {
-        name: "Jeremy Hansen",
-        nationality: "Canada",
-        rank: "Mission Specialist",
-        spacecraftId: orionCraft.spacecraftId,
-      },
-    }),
-    prisma.astronaut.create({
-      data: {
-        name: "Prashanth Balakrishnan Nair",
-        nationality: "India",
-        rank: "Group Captain",
-        spacecraftId: gaganyaanCraft.spacecraftId,
-      },
-    }),
-    prisma.astronaut.create({
-      data: {
-        name: "Angad Pratap",
-        nationality: "India",
-        rank: "Wing Commander",
-        spacecraftId: gaganyaanCraft.spacecraftId,
-      },
-    }),
-    prisma.astronaut.create({
-      data: {
-        name: "Ajit Krishnan",
-        nationality: "India",
-        rank: "Wing Commander",
-        spacecraftId: gaganyaanCraft.spacecraftId,
-      },
-    }),
-    prisma.astronaut.create({
-      data: {
-        name: "Shubhanshu Shukla",
-        nationality: "India",
-        rank: "Group Captain",
-        spacecraftId: null,
-      },
-    }),
-  ]);
+    });
+  await astronaut("Reid Wiseman", "United States", "Commander", orion2);
+  await astronaut("Victor Glover", "United States", "Pilot", orion2);
+  await astronaut("Christina Koch", "United States", "Mission Specialist", orion2);
+  await astronaut("Jeremy Hansen", "Canada", "Mission Specialist", orion2);
+  // Wilmore and Williams launched on Starliner Calypso and returned on Crew Dragon Freedom (Crew-9).
+  await astronaut('Barry "Butch" Wilmore', "United States", "Commander", calypso, freedom);
+  await astronaut("Sunita Williams", "United States", "Pilot", calypso, freedom);
+  await astronaut("Nick Hague", "United States", "Commander", freedom);
+  await astronaut("Aleksandr Gorbunov", "Russia", "Mission Specialist", freedom);
 
-  await Promise.all([
+  const payload = (payloadName: string, payloadType: string, weight: number, ...crafts: Craft[]) =>
     prisma.payload.create({
       data: {
-        payloadName: "Radiation Monitor",
-        payloadType: "Scientific Instrument",
-        weight: 45.2,
-        spacecraftId: orionCraft.spacecraftId,
+        payloadName,
+        payloadType,
+        weight,
+        spacecraft: { create: crafts.map(({ spacecraftId }) => ({ spacecraftId })) },
       },
-    }),
-    prisma.payload.create({
-      data: {
-        payloadName: "Europa Imaging System",
-        payloadType: "Camera Suite",
-        weight: 132.5,
-        spacecraftId: clipperCraft.spacecraftId,
-      },
-    }),
-    prisma.payload.create({
-      data: {
-        payloadName: "Mapping Imaging Spectrometer",
-        payloadType: "Spectrometer",
-        weight: 87.3,
-        spacecraftId: clipperCraft.spacecraftId,
-      },
-    }),
-    prisma.payload.create({
-      data: {
-        payloadName: "Vikram Lander Interface Module",
-        payloadType: "Communications",
-        weight: 60.0,
-        spacecraftId: gaganyaanCraft.spacecraftId,
-      },
-    }),
-    prisma.payload.create({
-      data: {
-        payloadName: "Submillimetre Wave Instrument",
-        payloadType: "Spectrometer",
-        weight: 21.7,
-        spacecraftId: juiceCraft.spacecraftId,
-      },
-    }),
-    prisma.payload.create({
-      data: {
-        payloadName: "Sample Collection Canister",
-        payloadType: "Sample Return Container",
-        weight: 15.4,
-        spacecraftId: perseveranceCraft.spacecraftId,
-      },
-    }),
-    prisma.payload.create({
-      data: {
-        payloadName: "Spare Docking Adapter",
-        payloadType: "Hardware",
-        weight: 33.9,
-        spacecraftId: null,
-      },
-    }),
-  ]);
+    });
+  await payload("MOXIE (Mars Oxygen In-Situ Resource Utilization Experiment)", "Technology Demonstration", 17.1, perseverance);
+  await payload("Ingenuity Mars Helicopter", "Technology Demonstration", 1.8, perseverance);
+  await payload("Pragyan Rover", "Rover", 26, vikram);
+  await payload("Mars Orbiter Mission Science Payload (5 instruments)", "Scientific Instrument Suite", 15, mangalyaan);
+  await payload("BioSentinel", "CubeSat", 14, orion1);
+  await payload("NEA Scout", "CubeSat", 14, orion1);
 
-  await Promise.all([
-    prisma.experiment.create({
-      data: {
-        experimentName: "Lunar Radiation Shielding Study",
-        objective: "Measure cumulative radiation exposure during trans-lunar flight.",
-        missionId: artemisII.missionId,
-      },
-    }),
-    prisma.experiment.create({
-      data: {
-        experimentName: "Europa Subsurface Ocean Survey",
-        objective: "Characterize the ice shell and subsurface ocean of Europa via radar sounding.",
-        missionId: europaClipper.missionId,
-      },
-    }),
-    prisma.experiment.create({
-      data: {
-        experimentName: "Microgravity Crew Health Study",
-        objective: "Assess cardiovascular adaptation of the crew during orbital flight.",
-        missionId: gaganyaan.missionId,
-      },
-    }),
-    prisma.experiment.create({
-      data: {
-        experimentName: "Ganymede Magnetosphere Mapping",
-        objective: "Map the interaction between Ganymede's magnetic field and Jupiter's magnetosphere.",
-        missionId: jwstServicing.missionId,
-      },
-    }),
-    prisma.experiment.create({
-      data: {
-        experimentName: "Martian Regolith Sample Analysis",
-        objective: "Analyze collected regolith samples for biosignatures prior to Earth return.",
-        missionId: marsSample.missionId,
-      },
-    }),
-    prisma.experiment.create({
-      data: {
-        experimentName: "Seismic Activity Monitoring",
-        objective: "Record marsquake data to model the interior structure of Mars.",
-        missionId: insight.missionId,
-      },
-    }),
-  ]);
+  const experiment = (experimentName: string, objective: string, missionId: number) =>
+    prisma.experiment.create({ data: { experimentName, objective, missionId } });
+  await experiment("Matroshka AstroRad Radiation Experiment (MARE)", "Measure radiation exposure on two instrumented manikins and test the AstroRad protective vest during a lunar trajectory.", artemis1.missionId);
+  await experiment("BioSentinel", "Study the effect of deep-space radiation on yeast DNA damage and repair.", artemis1.missionId);
+  await experiment("REASON (Radar for Europa Assessment and Sounding)", "Sound Europa's ice shell to characterise its thickness and any subsurface water.", clipper.missionId);
+  await experiment("MISE (Mapping Imaging Spectrometer for Europa)", "Map the composition of Europa's surface ices, salts and organics.", clipper.missionId);
+  await experiment("MOXIE", "Demonstrate production of oxygen from the carbon dioxide in the Martian atmosphere.", mars2020.missionId);
+  await experiment("SHERLOC", "Detect organic molecules and minerals on Martian rocks using fine-scale spectroscopy.", mars2020.missionId);
+  await experiment("Exoplanet Transit Spectroscopy (WASP-39 b)", "Characterise the atmosphere of the hot gas giant WASP-39 b during transit.", jwst.missionId);
+  await experiment("J-MAG Magnetometer", "Map Ganymede's magnetic field and its interaction with Jupiter's magnetosphere.", juice.missionId);
+  await experiment("RIME (Radar for Icy Moons Exploration)", "Probe the subsurface structure of Ganymede's icy crust.", juice.missionId);
+  await experiment("ChaSTE (Chandra's Surface Thermophysical Experiment)", "Measure the temperature profile of the lunar regolith near the south pole.", chandrayaan3.missionId);
+  await experiment("APXS (Alpha Particle X-ray Spectrometer)", "Determine the elemental composition of lunar soil and rocks at the landing site.", chandrayaan3.missionId);
+  await experiment("Methane Sensor for Mars (MSM)", "Search for methane in the Martian atmosphere.", mom.missionId);
 
-  const telemetryRows: {
-    timestamp: Date;
-    altitude: number;
-    velocity: number;
-    missionId: number;
-    stationId: number;
-  }[] = [];
+  // Telemetry: sampled real trajectories. The first sample of each mission is attributed to the
+  // launch-site network; the rest rotate across the mission's deep-space network complexes.
+  type Station = { stationId: number };
+  const networks: Record<string, { missionId: number; launch: Station; deep: Station[] }> = {
+    art1: { missionId: artemis1.missionId, launch: mila, deep: [goldstone, madrid, canberra] },
+    art2: { missionId: artemis2.missionId, launch: mila, deep: [goldstone, madrid, canberra] },
+    clipper: { missionId: clipper.missionId, launch: mila, deep: [goldstone, madrid, canberra] },
+    mars2020: { missionId: mars2020.missionId, launch: mila, deep: [goldstone, madrid, canberra] },
+    jwst: { missionId: jwst.missionId, launch: kourou, deep: [goldstone, madrid, canberra] },
+    juice: { missionId: juice.missionId, launch: kourou, deep: [newNorcia, cebreros, malargue] },
+    mom: { missionId: mom.missionId, launch: istrac, deep: [istrac] },
+  };
 
-  const missionStationPairs = [
-    { mission: artemisII, station: dsn1 },
-    { mission: artemisII, station: dsn2 },
-    { mission: europaClipper, station: dsn1 },
-    { mission: europaClipper, station: esoc },
-    { mission: gaganyaan, station: istrac },
-    { mission: jwstServicing, station: esoc },
-    { mission: marsSample, station: dsn2 },
-  ];
-
-  const now = new Date();
-
-  for (const { mission, station } of missionStationPairs) {
-    let altitude = 500 + Math.random() * 2000;
-    let velocity = 7.5 + Math.random() * 3;
-
-    for (let i = 0; i < 12; i++) {
-      altitude += (Math.random() - 0.3) * 40;
-      velocity += (Math.random() - 0.5) * 0.3;
-
-      telemetryRows.push({
-        timestamp: new Date(now.getTime() - (12 - i) * 15 * 60 * 1000),
-        altitude: Math.max(altitude, 100),
-        velocity: Math.max(velocity, 1),
-        missionId: mission.missionId,
-        stationId: station.stationId,
-      });
-    }
-  }
-
+  const telemetryRows = Object.entries(networks).flatMap(([key, net]) =>
+    (trajectories[key] ?? []).map((sample, i) => ({
+      timestamp: new Date(sample.t),
+      altitude: sample.altitude,
+      velocity: sample.velocity,
+      missionId: net.missionId,
+      stationId: (i === 0 ? net.launch : net.deep[(i - 1) % net.deep.length]).stationId,
+    }))
+  );
   await prisma.telemetry.createMany({ data: telemetryRows });
 
   console.log("Seed complete.");

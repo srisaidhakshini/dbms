@@ -45,16 +45,16 @@ model Mission {
   status          MissionStatus @default(planned)
   budget          Decimal       @db.Decimal(14, 2)
   agencyId        Int           @map("agency_id")
-  launchVehicleId Int           @map("launch_vehicle_id")
+  vehicleId       Int           @map("vehicle_id")
 
   agency        SpaceAgency   @relation(fields: [agencyId], references: [agencyId], onDelete: Restrict)
-  launchVehicle LaunchVehicle @relation(fields: [launchVehicleId], references: [vehicleId], onDelete: Restrict)
+  launchVehicle LaunchVehicle @relation(fields: [vehicleId], references: [vehicleId], onDelete: Restrict)
   spacecraft    Spacecraft[]
   experiments   Experiment[]
   telemetry     Telemetry[]
 
   @@index([agencyId])
-  @@index([launchVehicleId])
+  @@index([vehicleId])
   @@map("missions")
 }
 
@@ -66,8 +66,8 @@ model Spacecraft {
   missionId    Int    @map("mission_id")
 
   mission    Mission     @relation(fields: [missionId], references: [missionId], onDelete: Cascade)
-  astronauts Astronaut[]
-  payloads   Payload[]
+  astronauts SpacecraftAstronaut[]
+  payloads   SpacecraftPayload[]
 
   @@index([missionId])
   @@map("spacecraft")
@@ -78,11 +78,9 @@ model Astronaut {
   name         String
   nationality  String
   rank         String
-  spacecraftId Int?   @map("spacecraft_id")
 
-  spacecraft Spacecraft? @relation(fields: [spacecraftId], references: [spacecraftId], onDelete: SetNull)
+  spacecraft SpacecraftAstronaut[]
 
-  @@index([spacecraftId])
   @@map("astronauts")
 }
 
@@ -91,12 +89,34 @@ model Payload {
   payloadName  String  @map("payload_name")
   payloadType  String  @map("payload_type")
   weight       Decimal @db.Decimal(10, 2)
-  spacecraftId Int?    @map("spacecraft_id")
 
-  spacecraft Spacecraft? @relation(fields: [spacecraftId], references: [spacecraftId], onDelete: SetNull)
+  spacecraft SpacecraftPayload[]
 
-  @@index([spacecraftId])
   @@map("payloads")
+}
+
+model SpacecraftAstronaut {
+  spacecraftId Int @map("spacecraft_id")
+  astronautId  Int @map("astronaut_id")
+
+  spacecraft Spacecraft @relation(fields: [spacecraftId], references: [spacecraftId], onDelete: Cascade)
+  astronaut  Astronaut  @relation(fields: [astronautId], references: [astronautId], onDelete: Cascade)
+
+  @@id([spacecraftId, astronautId])
+  @@index([astronautId])
+  @@map("spacecraft_astronauts")
+}
+
+model SpacecraftPayload {
+  spacecraftId Int @map("spacecraft_id")
+  payloadId    Int @map("payload_id")
+
+  spacecraft Spacecraft @relation(fields: [spacecraftId], references: [spacecraftId], onDelete: Cascade)
+  payload    Payload    @relation(fields: [payloadId], references: [payloadId], onDelete: Cascade)
+
+  @@id([spacecraftId, payloadId])
+  @@index([payloadId])
+  @@map("spacecraft_payloads")
 }
 
 model GroundStation {

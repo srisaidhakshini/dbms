@@ -35,9 +35,12 @@ SpaceAgency ──< Mission >── LaunchVehicle
         │         │          │
    Spacecraft  Experiment  Telemetry ──> GroundStation
      │
-  ┌──┴──┐
-Astronaut  Payload
+  ┌──┴───────────────┐
+  │ (M:M junctions)  │
+Astronaut          Payload
 ```
+
+`Spacecraft` ↔ `Astronaut` and `Spacecraft` ↔ `Payload` are many-to-many, resolved by the `spacecraft_astronauts` and `spacecraft_payloads` junction tables (composite primary keys).
 
 | Table | Description |
 |---|---|
@@ -45,8 +48,10 @@ Astronaut  Payload
 | `launch_vehicles` | Rockets used to launch missions |
 | `missions` | Core mission records (type, date, budget, status) |
 | `spacecraft` | Vehicles assigned to a mission |
-| `astronauts` | Crew members aboard spacecraft |
-| `payloads` | Scientific/commercial cargo on spacecraft |
+| `astronauts` | Crew members |
+| `payloads` | Scientific/commercial cargo |
+| `spacecraft_astronauts` | Junction: which astronauts fly on which spacecraft |
+| `spacecraft_payloads` | Junction: which payloads are carried by which spacecraft |
 | `ground_stations` | Ground control stations |
 | `telemetry` | Real-time altitude & velocity readings |
 | `experiments` | Scientific experiments per mission |

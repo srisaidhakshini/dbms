@@ -25,7 +25,7 @@ export const missionSchema = z.object({
   status: missionStatusEnum,
   budget: z.coerce.number().nonnegative(),
   agencyId: z.coerce.number().int().positive(),
-  launchVehicleId: z.coerce.number().int().positive(),
+  vehicleId: z.coerce.number().int().positive(),
 });
 
 export const spacecraftSchema = z.object({
@@ -35,18 +35,23 @@ export const spacecraftSchema = z.object({
   missionId: z.coerce.number().int().positive(),
 });
 
+const spacecraftIdsSchema = z
+  .array(z.coerce.number().int().positive())
+  .default([])
+  .transform((ids) => [...new Set(ids)]);
+
 export const astronautSchema = z.object({
   name: z.string().min(1, "Name is required"),
   nationality: z.string().min(1, "Nationality is required"),
   rank: z.string().min(1, "Rank is required"),
-  spacecraftId: z.coerce.number().int().positive().nullable().optional(),
+  spacecraftIds: spacecraftIdsSchema,
 });
 
 export const payloadSchema = z.object({
   payloadName: z.string().min(1, "Payload name is required"),
   payloadType: z.string().min(1, "Payload type is required"),
   weight: z.coerce.number().nonnegative(),
-  spacecraftId: z.coerce.number().int().positive().nullable().optional(),
+  spacecraftIds: spacecraftIdsSchema,
 });
 
 export const groundStationSchema = z.object({
